@@ -1,7 +1,6 @@
 import numpy as np 
 from collections import Counter
 import heapq
-import time
 
 def accuracy(actuals, predicted):
   correct = 0
@@ -10,11 +9,21 @@ def accuracy(actuals, predicted):
       correct += 1
   return correct / len(actuals)
 
+def inplace_min_max_scaling(data):
+  maximum = 255.0
+
+  for i, row in enumerate(data):
+    row = np.array(row[1], dtype=np.float64)
+    scaled = row / maximum
+    data[i][1] = scaled
+  
+
+
 def euclidean(a,b):
   """
   Returns Euclidean distance between vectors and b
   """
-  return np.sqrt(np.sum((np.array(a, dtype=np.int64) - np.array(b, dtype=np.int64))**2))
+  return np.sqrt(np.sum((np.array(a, dtype=np.float64) - np.array(b, dtype=np.float64))**2))
         
 def cosim(a, b):
   """
@@ -68,6 +77,9 @@ def knn(train, query, metric):
   -------
   Returns one array of true labels and one array of the predicted labels 
   """
+  inplace_min_max_scaling(train)
+  inplace_min_max_scaling(query)
+
   k = 3
   print(f"Running KNN for k = {k} with {metric} metric")
   actuals = []
@@ -78,8 +90,6 @@ def knn(train, query, metric):
 
     actuals.append(test_example[0])
     predictions.append(most_common_label)
-  print("Printing 5 predictions (actual, predicted)")
-  print(predictions[0:5])
   return actuals, predictions
 
 
