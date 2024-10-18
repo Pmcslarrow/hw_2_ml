@@ -80,7 +80,7 @@ def knn(train, query, metric):
   inplace_min_max_scaling(train)
   inplace_min_max_scaling(query)
 
-  k = 3
+  k = 4
   print(f"Running KNN for k = {k} with {metric} metric")
   actuals = []
   predictions = []
@@ -132,16 +132,35 @@ def show(file_name,mode):
 def main():
     #show(filename,'pixels')
     train_data = read_data('mnist_train.csv')
+    valid_data = read_data('mnist_valid.csv')
     test_data = read_data('mnist_test.csv')
 
-    actual_cos, pred_cos = knn(train_data, test_data, 'cosim')
-    actual_euc, pred_euc = knn(train_data, test_data, 'euclidean')
+    # VALIDATION SET
+    print('----------------------------------')
+    valid_actual_cos, valid_pred_cos = knn(train_data, valid_data, 'cosim')
+    valid_actual_euc, valid_pred_euc = knn(train_data, valid_data, 'euclidean')
 
+    print("[  VALIDATION SET ]")
     print("Accuracy of Cosine Similarity KNN")
-    print(accuracy(actual_cos, pred_cos))
-
+    print(accuracy(valid_actual_cos, valid_pred_cos))
     print("Accuracy of Euclidean KNN")
-    print(accuracy(actual_euc, pred_euc))
+    print(accuracy(valid_actual_euc, valid_pred_euc))
+    print('----------------------------------')
+    print()
+    print()
+
+
+    # TEST SET
+    print('----------------------------------')
+    test_actual_cos, test_pred_cos = knn(train_data, test_data, 'cosim')
+    test_actual_euc, test_pred_euc = knn(train_data, test_data, 'euclidean')
+
+    print("[  TEST SET  ]")
+    print("Accuracy of Cosine Similarity KNN")
+    print(accuracy(test_actual_cos, test_pred_cos))
+    print("Accuracy of Euclidean KNN")
+    print(accuracy(test_actual_euc, test_pred_euc))
+    print('----------------------------------')
     
 if __name__ == "__main__":
     main()
