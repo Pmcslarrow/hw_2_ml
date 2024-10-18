@@ -1,6 +1,7 @@
 import numpy as np 
 from collections import Counter
 import heapq
+from sklearn import metrics
 
 def accuracy(actuals, predicted):
   correct = 0
@@ -8,6 +9,10 @@ def accuracy(actuals, predicted):
     if actuals[i] == predicted[i]:
       correct += 1
   return correct / len(actuals)
+
+def conf_matrix(actuals, predicted):
+   print('   0  1  2  3  4  5  6  7  8  9')
+   return metrics.confusion_matrix(actuals, predicted)
 
 def inplace_min_max_scaling(data):
   maximum = 255.0
@@ -143,8 +148,12 @@ def main():
     print("[  VALIDATION SET ]")
     print("Accuracy of Cosine Similarity KNN")
     print(accuracy(valid_actual_cos, valid_pred_cos))
+    print("Confusion Matrix of Cosine Similarity KNN")
+    print(conf_matrix(valid_actual_cos, valid_pred_cos))
     print("Accuracy of Euclidean KNN")
     print(accuracy(valid_actual_euc, valid_pred_euc))
+    print("Confusion Matrix of Euclidean KNN")
+    print(conf_matrix(valid_actual_euc, valid_pred_euc))
     print('----------------------------------')
     print()
     print()
@@ -158,8 +167,12 @@ def main():
     print("[  TEST SET  ]")
     print("Accuracy of Cosine Similarity KNN")
     print(accuracy(test_actual_cos, test_pred_cos))
+    print("Confusion Matrix of Cosine Similarity KNN")
+    print(conf_matrix(test_actual_cos, test_pred_cos))
     print("Accuracy of Euclidean KNN")
     print(accuracy(test_actual_euc, test_pred_euc))
+    print("Confusion Matrix of Euclidean KNN")
+    print(conf_matrix(test_actual_euc, test_pred_euc))
     print('----------------------------------')
     
 if __name__ == "__main__":
