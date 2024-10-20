@@ -3,6 +3,9 @@ from collections import Counter
 import heapq
 from sklearn import metrics
 import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import LabelEncoder
 
 class Node:
     def __init__(self, data):
@@ -119,7 +122,6 @@ def knn(train, query, metric):
     for test_example in query:
         k_distances = get_k_sorted_distances(test_example, train, metric=metric, k=k)
         most_common_label = get_most_common_label(k_distances)
-
         actuals.append(test_example[0])
         predictions.append(most_common_label)
     return actuals, predictions
@@ -127,23 +129,33 @@ def knn(train, query, metric):
 def kmeans(train, query, metric):
     num_clusters = 9
     has_converged = False
+    last_iteration_centroids = None
+    next_iteration_centroids = None
+    
     while not has_converged:
       nodes = initialize_nodes(train)  # Converts each row to a node representation
-      centroids = select_random_centroids(nodes, num_clusters)
-      assign_labels_to_nodes(nodes, centroids, metric)
-      updated_data = generate_dataset_from_labeled_nodes(nodes)
-      print(pd.DataFrame(updated_data).head(5))
-      """
-      NOTE:
-      The next step after having the updated data in a pandas
-      dataframe would be to:
-      1) Group by the label assigned to each node and get the mean for each group
-      2) After getting the mean, make this the next centroid to use on the next iteration
-      3) If the mean converges, set has_converged = True and it will break out of the loop
-      4) You will then have your dataset complete with num_clusters
+      if not next_iteration_centroids:
+        centroids = select_random_centroids(nodes, num_clusters) # Gets the k random mean clusters from the training set
+        last_iteration_centroids = centroids
+      else:
+        centroids = next_iteration_centroids
+        last_iteration_centroids = centroids
+      assign_labels_to_nodes(nodes, centroids, metric) # Assigns a class name to the node of the closest mean cluster
+      updated_data = generate_dataset_from_labeled_nodes(nodes) # Creates a new dataset of label data and flattened representations    {class-8 ,   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ...}
+      next_iteration_centroids = get_means_from_labeled_data(updated_data)
       
-      """
-      break
+      if last_iteration_centroids is not None and calculate_converge(last_iteration_centroids, next_iteration_centroids):
+        has_converged = True
+    return updated_data
+
+def calculate_converge(last_centroids, next_centroids):
+  epsilon = 1e-4
+  for i in range(len(last_centroids)):
+    difference = np.linalg.norm(np.array(last_centroids[i].get_data()) - np.array(next_centroids[i].get_data()))
+    print(last_centroids[i].get_class(), difference)
+    if difference >= epsilon:
+      return False
+  return True
 
 def initialize_nodes(train):
     new_dataset = []
@@ -175,10 +187,27 @@ def assign_labels_to_nodes(train, k_random_examples, metric):
 
 def generate_dataset_from_labeled_nodes(train):
     classes = [node.get_class() for node in train]
-    data = [node.get_data() for node in train]
-    new_dataset = list(zip(classes, data))
-    return new_dataset
+    data = np.array([node.get_data() for node in train], dtype=np.float64)
+    df = pd.DataFrame({
+        'label': classes,
+        'data': list(data)
+    })
+    return df  
     
+def get_means_from_labeled_data(data):
+    grouped = data.groupby('label')
+    next_centroids = []
+    for label, values in grouped:
+      new_mean_data = calculate_mean(values['data']) # Calculating the mean array for the grouped label (example: gets the new mean array for class-0, class-1...)
+      new_node = Node(new_mean_data)
+      new_node.set_class(label)
+      next_centroids.append(new_node)
+    return next_centroids
+
+def calculate_mean(arrays):
+  return np.mean(arrays, axis=0)
+
+
 def read_data(filename):
     dataset = []
     with open(filename, 'rt') as f:
@@ -266,9 +295,10 @@ def main():
     K MEANS
     ------------------------------------------------
     """
-    means_train_data = [row[1] for row in train_data]
+    means_train_data = [row[1] for row in train_data] # Passing in flattened matrix
     means_test_data = [row[1] for row in test_data]
-    kmeans(means_train_data, means_test_data, 'euclidean')
+    kmeans_resulting_dataset_with_clusters = kmeans(means_train_data, means_test_data, 'euclidean')
+    print(kmeans_resulting_dataset_with_clusters)
 
 
 if __name__ == "__main__":
