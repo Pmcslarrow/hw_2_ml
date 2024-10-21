@@ -5,7 +5,6 @@ from sklearn import metrics
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import LabelEncoder
 
 class Node:
     def __init__(self, data):
@@ -47,7 +46,7 @@ def accuracy(actuals, predicted):
     return correct / len(actuals)
 
 def conf_matrix(actuals, predicted):
-    print('   0  1  2  3  4  5  6  7  8  9')
+    print('        0  1  2  3  4  5  6  7  8  9')
     return metrics.confusion_matrix(actuals, predicted)
 
 def inplace_min_max_scaling(data):
@@ -116,7 +115,7 @@ def knn(train, query, metric):
     """
 
     k = 4
-    print(f"Running KNN for k = {k} with {metric} metric")
+    print(f"     Running KNN for k = {k} with {metric} metric")
     actuals = []
     predictions = []
     for test_example in query:
@@ -152,7 +151,7 @@ def calculate_converge(last_centroids, next_centroids):
   epsilon = 1e-4
   for i in range(len(last_centroids)):
     difference = np.linalg.norm(np.array(last_centroids[i].get_data()) - np.array(next_centroids[i].get_data()))
-    print(last_centroids[i].get_class(), difference)
+    #print(last_centroids[i].get_class(), difference)
     if difference >= epsilon:
       return False
   return True
@@ -207,6 +206,28 @@ def get_means_from_labeled_data(data):
 def calculate_mean(arrays):
   return np.mean(arrays, axis=0)
 
+def calculate_pca(dataset):
+  labels = [item[0] for item in dataset]  
+  features = np.array([item[1] for item in dataset])  
+  pca = PCA(n_components=200)
+  features_pca = pca.fit_transform(features)
+  return [[str(label), np.array(features_pca[i], dtype=np.float64)] for i, label in enumerate(labels)]
+
+def calculate_downsample(dataset):
+    for i, row in enumerate(dataset):
+      downsampled_row = [] 
+      left = 0
+      right = 2
+      
+      while right <= len(row[1]):
+        mean_value = sum(row[1][left:right]) / 2
+        downsampled_row.append(mean_value)
+        left += 2
+        right += 2
+      dataset[i][1] = downsampled_row
+    return dataset
+
+
 
 def read_data(filename):
     dataset = []
@@ -237,6 +258,10 @@ def show(filename, mode):
         print('LABEL: %s' % dataset[obs][0], end='')
         print(' ')
 
+def print_conf_matrix(matrix):
+  for row in matrix:
+    print("     ", row)
+
 def main():
     # show(filename, 'pixels')
     train_data = read_data('mnist_train.csv')
@@ -245,60 +270,157 @@ def main():
 
     inplace_min_max_scaling(train_data)
     inplace_min_max_scaling(test_data)
+    inplace_min_max_scaling(valid_data)
 
     """
     ------------------------------------------------
     K NEAREST NEIGHBORS
     ------------------------------------------------
-    
-    print("K-Nearest-Neighbors ")
-    print('\n\n\n')
+    """
+    print()
+    print("[ USING ORIGINAL DATASET WITHOUT DIMENSIONALITY REDUCTION ]")
+    print()
+    print('     ----------------------------------')
+    print("     K-Nearest-Neighbors ")
+    print('     ----------------------------------')
+
 
     # VALIDATION SET
-    print('----------------------------------')
+    print("     [  VALIDATION SET ]")
     valid_actual_cos, valid_pred_cos = knn(train_data, valid_data, 'cosim')
     valid_actual_euc, valid_pred_euc = knn(train_data, valid_data, 'euclidean')
-
-    print("[  VALIDATION SET ]")
-    print("Accuracy of Cosine Similarity KNN")
-    print(accuracy(valid_actual_cos, valid_pred_cos))
-    print("Confusion Matrix of Cosine Similarity KNN")
-    print(conf_matrix(valid_actual_cos, valid_pred_cos))
-    print("Accuracy of Euclidean KNN")
-    print(accuracy(valid_actual_euc, valid_pred_euc))
-    print("Confusion Matrix of Euclidean KNN")
-    print(conf_matrix(valid_actual_euc, valid_pred_euc))
-    print('----------------------------------')
+    print("     Accuracy of Cosine Similarity KNN -- ", accuracy(valid_actual_cos, valid_pred_cos))
+    print("     Confusion Matrix of Cosine Similarity KNN")
+    print_conf_matrix(conf_matrix(valid_actual_cos, valid_pred_cos))
+    print()
+    print("     Accuracy of Euclidean KNN -- ", accuracy(valid_actual_euc, valid_pred_euc))
+    print("     Confusion Matrix of Euclidean KNN")
+    print_conf_matrix(conf_matrix(valid_actual_euc, valid_pred_euc))
     print()
     print()
 
     # TEST SET
-    print('----------------------------------')
+    print("     [  TEST SET  ]")
+
     test_actual_cos, test_pred_cos = knn(train_data, test_data, 'cosim')
     test_actual_euc, test_pred_euc = knn(train_data, test_data, 'euclidean')
-
-    print("[  TEST SET  ]")
-    print("Accuracy of Cosine Similarity KNN")
-    print(accuracy(test_actual_cos, test_pred_cos))
-    print("Confusion Matrix of Cosine Similarity KNN")
-    print(conf_matrix(test_actual_cos, test_pred_cos))
-    print("Accuracy of Euclidean KNN")
-    print(accuracy(test_actual_euc, test_pred_euc))
-    print("Confusion Matrix of Euclidean KNN")
-    print(conf_matrix(test_actual_euc, test_pred_euc))
-    print('----------------------------------')
+    print("     Accuracy of Cosine Similarity KNN -- ", accuracy(test_actual_cos, test_pred_cos))
+    print("     Confusion Matrix of Cosine Similarity KNN")
+    print_conf_matrix(conf_matrix(test_actual_cos, test_pred_cos))
+    print("     Accuracy of Euclidean KNN")
+    print("     ", accuracy(test_actual_euc, test_pred_euc))
+    print("     Confusion Matrix of Euclidean KNN")
+    print_conf_matrix(conf_matrix(test_actual_euc, test_pred_euc))
+    
     print('\n\n\n')
-    """
+    
 
     """
     ------------------------------------------------
     K MEANS
     ------------------------------------------------
     """
-    means_train_data = [row[1] for row in train_data] # Passing in flattened matrix
+    print('     ----------------------------------')
+    print("     K-Means")
+    print('     ----------------------------------')
+    means_train_data = [row[1] for row in train_data] # Passing in flattened matrix without labels
     means_test_data = [row[1] for row in test_data]
-    kmeans_resulting_dataset_with_clusters = kmeans(means_train_data, means_test_data, 'euclidean')
-    print(kmeans_resulting_dataset_with_clusters)
+    kmeans_resulting_dataset_with_clusters = kmeans(means_train_data, means_test_data, 'euclidean') # result with labels
+    print("     ", kmeans_resulting_dataset_with_clusters) 
+    print('     ----------------------------------')
+    print('\n\n\n')
+
+
+
+
+    """
+    ------------------------------------------------
+    PRINCIPAL COMPONENT ANALYSIS
+    ------------------------------------------------
+    """
+    train_copy = train_data.copy()
+    test_copy = test_data.copy()
+    valid_copy = valid_data.copy()
+
+    df_train_pca = calculate_pca(train_copy)
+    df_test_pca = calculate_pca(test_copy)
+    df_valid_pca = calculate_pca(valid_copy)
+
+    print("[ PCA - DIMENSIONALITY REDUCTION  ]")
+    print()
+    print('     ----------------------------------')
+    print("     K-Nearest-Neighbors ")
+    print('     ----------------------------------')
+
+        # VALIDATION SET
+    print("     [  VALIDATION SET ]")
+    pca_valid_actual_cos, pca_valid_pred_cos = knn(df_train_pca, df_valid_pca, 'cosim')
+    pca_valid_actual_euc, pca_valid_pred_euc = knn(df_train_pca, df_valid_pca, 'euclidean')
+    print("     Accuracy of Cosine Similarity KNN -- ", accuracy(pca_valid_actual_cos, pca_valid_pred_cos))
+    print("     Confusion Matrix of Cosine Similarity KNN")
+    print_conf_matrix(conf_matrix(pca_valid_actual_cos, pca_valid_pred_cos))
+    print()
+    print("     Accuracy of Euclidean KNN -- ", accuracy(pca_valid_actual_euc, pca_valid_pred_euc))
+    print("     Confusion Matrix of Euclidean KNN")
+    print_conf_matrix(conf_matrix(pca_valid_actual_euc, pca_valid_pred_euc))
+    print()
+    print()
+
+    # TEST SET
+    print("     [  TEST SET  ]")
+    pca_test_actual_cos, pca_test_pred_cos = knn(df_train_pca, df_test_pca, 'cosim')
+    pca_test_actual_euc, pca_test_pred_euc = knn(df_train_pca, df_test_pca, 'euclidean')
+    print("     Accuracy of Cosine Similarity KNN -- ", accuracy(pca_test_actual_cos, pca_test_pred_cos))
+    print("     Confusion Matrix of Cosine Similarity KNN")
+    print_conf_matrix(conf_matrix(pca_test_actual_cos, pca_test_pred_cos))
+    print("     Accuracy of Euclidean KNN")
+    print("     ", accuracy(pca_test_actual_euc, pca_test_pred_euc))
+    print("     Confusion Matrix of Euclidean KNN")
+    print_conf_matrix(conf_matrix(pca_test_actual_euc, pca_test_pred_euc))
+    print('\n\n\n')
+
+
+
+    """
+    ------------------------------------------------
+    DOWNSAMPLING
+    ------------------------------------------------
+    """
+    print("[ DOWNSAMPLING - DIMENSIONALITY REDUCTION ]")
+    calculate_downsample(train_copy) # inplace calculation of downsample -- reduces the dataset by half exactly
+    calculate_downsample(test_copy)
+    calculate_downsample(valid_copy)
+    print()
+    print('     ----------------------------------')
+    print("     K-Nearest-Neighbors ")
+    print('     ----------------------------------')
+
+        # VALIDATION SET
+    print("     [  VALIDATION SET ]")
+    downsample_valid_actual_cos, downsample_valid_pred_cos = knn(train_copy, valid_copy, 'cosim')
+    downsample_valid_actual_euc, downsample_valid_pred_euc = knn(train_copy, valid_copy, 'euclidean')
+    print("     Accuracy of Cosine Similarity KNN -- ", accuracy(downsample_valid_actual_cos, downsample_valid_pred_cos))
+    print("     Confusion Matrix of Cosine Similarity KNN")
+    print_conf_matrix(conf_matrix(downsample_valid_actual_cos, downsample_valid_pred_cos))
+    print()
+    print("     Accuracy of Euclidean KNN -- ", accuracy(downsample_valid_actual_euc, downsample_valid_pred_euc))
+    print("     Confusion Matrix of Euclidean KNN")
+    print_conf_matrix(conf_matrix(downsample_valid_actual_euc, downsample_valid_pred_euc))
+    print()
+    print()
+
+    # TEST SET
+    print("     [  TEST SET  ]")
+    downsample_test_actual_cos, downsample_test_pred_cos = knn(train_copy, test_copy, 'cosim')
+    downsample_test_actual_euc, downsample_test_pred_euc = knn(train_copy, test_copy, 'euclidean')
+    print("     Accuracy of Cosine Similarity KNN -- ", accuracy(downsample_test_actual_cos, downsample_test_pred_cos))
+    print("     Confusion Matrix of Cosine Similarity KNN")
+    print_conf_matrix(conf_matrix(downsample_test_actual_cos, downsample_test_pred_cos))
+    print("     Accuracy of Euclidean KNN")
+    print("     ", accuracy(downsample_test_actual_euc, downsample_test_pred_euc))
+    print("     Confusion Matrix of Euclidean KNN")
+    print_conf_matrix(conf_matrix(downsample_test_actual_euc, downsample_test_pred_euc))
+    print('\n\n\n')
 
 
 if __name__ == "__main__":
