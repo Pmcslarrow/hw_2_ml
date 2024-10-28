@@ -63,14 +63,24 @@ def euclidean(a, b):
     """
     return np.sqrt(np.sum((np.array(a, dtype=np.float64) - np.array(b, dtype=np.float64))**2))
 
+import numpy as np
+
 def cosim(a, b):
     """
-    Returns Cosine Similarity between vectors a and b
+    Returns Cosine Similarity between vectors a and b.
+    Handles edge cases where either vector is zero.
     """
-    a = np.array(a, dtype=np.float64)  
-    b = np.array(b, dtype=np.float64)  
-    dot_product = np.dot(a, b)         
-    return dot_product / (np.linalg.norm(a) * np.linalg.norm(b))
+    a = np.array(a, dtype=np.float64)
+    b = np.array(b, dtype=np.float64)
+    
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    
+    dot_product = np.dot(a, b)
+    return dot_product / (norm_a * norm_b)
 
 def get_k_sorted_distances(test_row, train, metric='euclidean', k=3):
     """
