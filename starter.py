@@ -37,7 +37,6 @@ class Node:
         """
         self.min_distance = new_min
 
-
 def accuracy(actuals, predicted):
     correct = 0
     for i in range(len(actuals)):
@@ -69,6 +68,7 @@ def cosim(a, b):
     """
     a = np.array(a, dtype=np.float64)  
     b = np.array(b, dtype=np.float64)  
+
     dot_product = np.dot(a, b)         
     return dot_product / (np.linalg.norm(a) * np.linalg.norm(b))
 
@@ -125,8 +125,7 @@ def knn(train, query, metric):
         predictions.append(most_common_label)
     return actuals, predictions
 
-def kmeans(train, query, metric):
-    num_clusters = 9
+def kmeans(train, num_clusters, metric):
     has_converged = False
     last_iteration_centroids = None
     next_iteration_centroids = None
@@ -316,14 +315,15 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
   euclidean_test_accuracy = accuracy(test_actual_euc, test_pred_euc)
   return cosine_validation_accuracy, euclidean_validation_accuracy, cosine_test_accuracy, euclidean_test_accuracy
 
-def run_kmeans(train, test):
+def run_kmeans(train):
   print('     ----------------------------------')
   print("     K-Means")
   print('     ----------------------------------')
-  kmeans_resulting_dataset_with_clusters = kmeans(train, test, 'euclidean') # result with labels
+  kmeans_resulting_dataset_with_clusters = kmeans(train, num_clusters=9, metric='euclidean') # result with labels
   print("     ", kmeans_resulting_dataset_with_clusters) 
   print('     ----------------------------------')
   print('\n\n\n')
+  return kmeans_resulting_dataset_with_clusters
 
 def main():
     # show(filename, 'pixels')
@@ -335,13 +335,19 @@ def main():
     inplace_min_max_scaling(test_data)
     inplace_min_max_scaling(valid_data)
 
+    means_train_data = [row[1] for row in train_data] # Passing in flattened matrix without labels
+
+    return
 
     """
     ------------------------------------------------
     KNN with no dimensionality reduction
     ------------------------------------------------
     """
-    no_dim_cosine_validation_accuracy, no_dim_euclidean_validation_accuracy, no_dim_cosine_test_accuracy, no_dim_euclidean_test_accuracy = run_knn(train_data, test_data, valid_data)
+    no_dim_cosine_validation_accuracy, \
+    no_dim_euclidean_validation_accuracy, \
+    no_dim_cosine_test_accuracy, \
+    no_dim_euclidean_test_accuracy = run_knn(train_data, test_data, valid_data)
     
 
     """
@@ -350,8 +356,7 @@ def main():
     ------------------------------------------------
     """
     means_train_data = [row[1] for row in train_data] # Passing in flattened matrix without labels
-    means_test_data = [row[1] for row in test_data]
-    run_kmeans(means_train_data, means_test_data)
+    run_kmeans(means_train_data)
 
 
     """
@@ -367,7 +372,10 @@ def main():
     df_test_pca = calculate_pca(test_copy)
     df_valid_pca = calculate_pca(valid_copy)
 
-    pca_cosine_validation_accuracy, pca_euclidean_validation_accuracy, pca_cosine_test_accuracy, pca_euclidean_test_accuracy = run_knn(df_train_pca, df_test_pca, df_valid_pca, title="[ PCA - DIMENSIONALITY REDUCTION  ]")
+    pca_cosine_validation_accuracy, \
+    pca_euclidean_validation_accuracy, \
+    pca_cosine_test_accuracy, \
+    pca_euclidean_test_accuracy = run_knn(df_train_pca, df_test_pca, df_valid_pca, title="[ PCA - DIMENSIONALITY REDUCTION  ]")
 
 
     """
@@ -379,7 +387,10 @@ def main():
     calculate_downsample(test_copy)
     calculate_downsample(valid_copy)
 
-    downsampling_cosine_validation_accuracy, downsampling_euclidean_validation_accuracy, downsampling_cosine_test_accuracy, downsampling_euclidean_test_accuracy = run_knn(train_copy, test_copy, valid_copy, title="[ DOWNSAMPLING - DIMENSIONALITY REDUCTION ]")
+    downsampling_cosine_validation_accuracy, \
+    downsampling_euclidean_validation_accuracy, \
+    downsampling_cosine_test_accuracy, \
+    downsampling_euclidean_test_accuracy = run_knn(train_copy, test_copy, valid_copy, title="[ DOWNSAMPLING - DIMENSIONALITY REDUCTION ]")
 
 
     """
