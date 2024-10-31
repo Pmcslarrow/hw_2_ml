@@ -4,7 +4,12 @@ import heapq
 from sklearn import metrics
 import pandas as pd
 import matplotlib.pyplot as plt
+import sklearn.cluster
 from sklearn.decomposition import PCA
+
+import sklearn
+import sklearn.decomposition
+import sklearn.metrics
 
 class Node:
     def __init__(self, data):
@@ -57,6 +62,15 @@ def inplace_min_max_scaling(data):
         scaled = row / maximum
         data[i][1] = scaled
 
+def hamming_distance(a, b):
+    """
+    Returns Euclidean distance between vectors a and b
+    """
+    if len(a) != len(b):
+        raise ValueError("Arrays must be of the same length")
+    
+    return sum(pix1 != pix2 for pix1, pix2 in zip(a, b))
+
 def euclidean(a, b):
     """
     Returns Euclidean distance between vectors a and b
@@ -68,7 +82,6 @@ import numpy as np
 def cosim(a, b):
     """
     Returns Cosine Similarity between vectors a and b.
-    Handles edge cases where either vector is zero.
     """
     a = np.array(a, dtype=np.float64)
     b = np.array(b, dtype=np.float64)
@@ -80,7 +93,7 @@ def cosim(a, b):
         return 0.0
     
     dot_product = np.dot(a, b)
-    return dot_product / (norm_a * norm_b)
+    return 1.0 - (dot_product / (norm_a * norm_b))
 
 def get_k_sorted_distances(test_row, train, metric='euclidean', k=3):
     """
@@ -135,6 +148,48 @@ def knn(train, query, metric):
         predictions.append(most_common_label)
     return actuals, predictions
 
+def get_random_centroids_michael(data, k):
+    data_copy = data.copy()
+    np.random.shuffle(data_copy)
+    num_points = len(data_copy)
+    chunk_size = int(np.ceil(num_points / k))
+
+    centroids = [
+        np.mean(data_copy[idx: idx + chunk_size], axis=0) if idx + chunk_size <= num_points 
+        else np.mean(data_copy[idx:]) 
+        for idx in range(0, num_points, chunk_size)
+    ]
+
+    return centroids
+
+def kmeans_michael(data, metric, k=10):
+    centroids = get_random_centroids_michael(data, k)
+
+    clusters = None
+
+    converged = False
+    while not converged:
+        clusters = [[] for _ in range(k)]
+
+        for point in data:
+            if metric == 'euclidean':
+                point_to_centroid_dists = [euclidean(point, centroid)
+                                        for centroid in centroids]
+            elif metric == 'cosim':
+                point_to_centroid_dists = [cosim(point, centroid)
+                                        for centroid in centroids]
+            cluster_membership = np.argmin(point_to_centroid_dists)
+            clusters[cluster_membership].append(point)
+        
+        new_centroids = [np.mean(cluster, axis=0) for cluster in clusters]
+
+        converged = all([np.array_equal(centroid, new_centroid) for centroid, new_centroid in zip(centroids, new_centroids)])
+        centroids = new_centroids
+
+    return clusters
+    
+        
+   
 def kmeans(train, query, metric):
     num_clusters = 9
     has_converged = False
@@ -296,6 +351,7 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
   print("     [  VALIDATION SET ]")
   valid_actual_cos, valid_pred_cos = knn(train, valid, 'cosim')
   valid_actual_euc, valid_pred_euc = knn(train, valid, 'euclidean')
+  valid_actual_ham, valid_pred_ham = knn(train, valid, 'hamming')
   print("     Accuracy of Cosine Similarity KNN -- ", accuracy(valid_actual_cos, valid_pred_cos))
   print("     Confusion Matrix of Cosine Similarity KNN")
   print_conf_matrix(conf_matrix(valid_actual_cos, valid_pred_cos))
@@ -303,6 +359,10 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
   print("     Accuracy of Euclidean KNN -- ", accuracy(valid_actual_euc, valid_pred_euc))
   print("     Confusion Matrix of Euclidean KNN")
   print_conf_matrix(conf_matrix(valid_actual_euc, valid_pred_euc))
+  print()
+  print("     Accuracy of Hamming KNN -- ", accuracy(valid_actual_ham, valid_pred_ham))
+  print("     Confusion Matrix of Hamming KNN")
+  print_conf_matrix(conf_matrix(valid_actual_ham, valid_pred_ham))
   print()
   print()
 
@@ -322,9 +382,12 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
   print('\n\n\n')
   cosine_validation_accuracy = accuracy(valid_actual_cos, valid_pred_cos)
   euclidean_validation_accuracy = accuracy(valid_actual_euc, valid_pred_euc)
+  hamming_validation_accuracy = accuracy(valid_pred_ham, valid_pred_ham)
+
   cosine_test_accuracy = accuracy(test_actual_cos, test_pred_cos)
   euclidean_test_accuracy = accuracy(test_actual_euc, test_pred_euc)
-  return cosine_validation_accuracy, euclidean_validation_accuracy, cosine_test_accuracy, euclidean_test_accuracy
+
+  return cosine_validation_accuracy, euclidean_validation_accuracy, cosine_test_accuracy, euclidean_test_accuracy, hamming_validation_accuracy
 
 def run_kmeans(train, test):
   print('     ----------------------------------')
@@ -341,17 +404,12 @@ def main():
     valid_data = read_data('mnist_valid.csv')
     test_data = read_data('mnist_test.csv')
 
-    inplace_min_max_scaling(train_data)
-    inplace_min_max_scaling(test_data)
-    inplace_min_max_scaling(valid_data)
-
-
     """
     ------------------------------------------------
     KNN with no dimensionality reduction
     ------------------------------------------------
     """
-    no_dim_cosine_validation_accuracy, no_dim_euclidean_validation_accuracy, no_dim_cosine_test_accuracy, no_dim_euclidean_test_accuracy = run_knn(train_data, test_data, valid_data)
+    no_dim_cosine_validation_accuracy, no_dim_euclidean_validation_accuracy, no_dim_cosine_test_accuracy, no_dim_euclidean_test_accuracy, hamming_validation_accuracy = run_knn(train_data, test_data, valid_data)
     
 
     """
@@ -377,7 +435,7 @@ def main():
     df_test_pca = calculate_pca(test_copy)
     df_valid_pca = calculate_pca(valid_copy)
 
-    pca_cosine_validation_accuracy, pca_euclidean_validation_accuracy, pca_cosine_test_accuracy, pca_euclidean_test_accuracy = run_knn(df_train_pca, df_test_pca, df_valid_pca, title="[ PCA - DIMENSIONALITY REDUCTION  ]")
+    pca_cosine_validation_accuracy, pca_euclidean_validation_accuracy, pca_cosine_test_accuracy, pca_euclidean_test_accuracy, pca_hamming_validation_accuracy = run_knn(df_train_pca, df_test_pca, df_valid_pca, title="[ PCA - DIMENSIONALITY REDUCTION  ]")
 
 
     """
@@ -389,7 +447,7 @@ def main():
     calculate_downsample(test_copy)
     calculate_downsample(valid_copy)
 
-    downsampling_cosine_validation_accuracy, downsampling_euclidean_validation_accuracy, downsampling_cosine_test_accuracy, downsampling_euclidean_test_accuracy = run_knn(train_copy, test_copy, valid_copy, title="[ DOWNSAMPLING - DIMENSIONALITY REDUCTION ]")
+    downsampling_cosine_validation_accuracy, downsampling_euclidean_validation_accuracy, downsampling_cosine_test_accuracy, downsampling_euclidean_test_accuracy, downsampling_hamming_validation_accuracy = run_knn(train_copy, test_copy, valid_copy, title="[ DOWNSAMPLING - DIMENSIONALITY REDUCTION ]")
 
 
     """
@@ -403,6 +461,7 @@ def main():
     print(f"Euclidean Validation Accuracy: {no_dim_euclidean_validation_accuracy}")
     print(f"Cosine Test Accuracy: {no_dim_cosine_test_accuracy}")
     print(f"Euclidean Test Accuracy: {no_dim_euclidean_test_accuracy}\n")
+    print(f"Hamming Validation Accuracy: {hamming_validation_accuracy}\n")
 
 
     # KNN with PCA
@@ -423,3 +482,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+    # train_data = read_data('mnist_train.csv')
+    # show('mnist_train.csv', 'pixels')
+
