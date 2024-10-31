@@ -161,3 +161,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 /hw_2_ml
+/embeddings
+/mnist_data
+/optimal_cluster_centers
