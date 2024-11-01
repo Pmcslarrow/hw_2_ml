@@ -80,31 +80,6 @@ def euclidean(a, b):
   distance = np.sqrt(np.sum((ratings_a - ratings_b)**2))
   return distance, movie_ids_a_ranked_not_b, movie_ids_b_ranked_not_a
 
-def read_file(prefix="train"):
-  """
-  Parameters
-  ----------
-  prefix: The prefix of the filename you want --> train_a.txt  train is the prefix here and we assume a, b, and c are the only postfix
-
-  Returns
-  -------
-  An array containing encoded pandas DataFrames for a, b, and c of your respective prefix filename
-  For example, training_data[0] contains train_a.txt as a pandas DataFrame
-  
-  """
-  training_datasets = [] # train_a.txt, train_b.txt, train_c.txt in pandas DataFrame format (encoded)
-  postfix=['a', 'b', 'c']
-  for letter in postfix:
-    filename = f"{prefix}_{letter}.txt"
-    data = pd.read_csv(filename, sep='\t')
-    label_encoder = LabelEncoder()
-
-    for column_name in data.columns:
-      if column_name not in ['user_id', 'movie_id']:
-        data[column_name] = label_encoder.fit_transform(data[column_name])
-    training_datasets.append(data)
-  return training_datasets
-
 def calculate_similarities(data):
   """
   Parameters
@@ -129,6 +104,31 @@ def calculate_similarities(data):
         similarities[user_1].append((distance, user_2, movie_ids_user1_not_user2, movie_ids_user2_not_user1))
         similarities[user_2].append((distance, user_1, movie_ids_user1_not_user2, movie_ids_user2_not_user1))
   return similarities
+
+def read_file(prefix="train"):
+  """
+  Parameters
+  ----------
+  prefix: The prefix of the filename you want --> train_a.txt  train is the prefix here and we assume a, b, and c are the only postfix
+
+  Returns
+  -------
+  An array containing encoded pandas DataFrames for a, b, and c of your respective prefix filename
+  For example, training_data[0] contains train_a.txt as a pandas DataFrame
+  
+  """
+  training_datasets = [] # train_a.txt, train_b.txt, train_c.txt in pandas DataFrame format (encoded)
+  postfix=['a', 'b', 'c']
+  for letter in postfix:
+    filename = f"{prefix}_{letter}.txt"
+    data = pd.read_csv(filename, sep='\t')
+    label_encoder = LabelEncoder()
+
+    for column_name in data.columns:
+      if column_name not in ['user_id', 'movie_id']:
+        data[column_name] = label_encoder.fit_transform(data[column_name])
+    training_datasets.append(data)
+  return training_datasets
 
 
 if __name__ == '__main__':
