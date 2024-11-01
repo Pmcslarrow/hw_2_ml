@@ -1,15 +1,8 @@
 import numpy as np 
 from collections import Counter
 import heapq
-from sklearn import metrics
 import pandas as pd
 import matplotlib.pyplot as plt
-import sklearn.cluster
-from sklearn.decomposition import PCA
-
-import sklearn
-import sklearn.decomposition
-import sklearn.metrics
 
 class Node:
     def __init__(self, data):
@@ -62,9 +55,30 @@ def inplace_min_max_scaling(data):
         scaled = row / maximum
         data[i][1] = scaled
 
-def hamming_distance(a, b):
+def pearson_correlation(a, b):
     """
-    Returns Euclidean distance between vectors a and b
+    Returns Pearson correlation distance between vectors a and b
+    """
+    if len(a) != len(b):
+        raise ValueError("Arrays must be of the same length")
+    
+    a = np.array(a, dtype=np.float64)
+    b = np.array(b, dtype=np.float64)
+    
+    mean_a = np.mean(a)
+    mean_b = np.mean(b)
+
+    numerator = (np.sum((a - mean_a) * (b - mean_b)))
+    denominator = (np.sqrt(np.sum((a - mean_a) ** 2)) * np.sqrt(np.sum((b - mean_b) ** 2)))
+
+    if denominator == 0.0:
+        return 0.0
+        
+    return 1 - (numerator / denominator)
+
+def hamming(a, b):
+    """
+    Returns Hamming distance between vectors a and b
     """
     if len(a) != len(b):
         raise ValueError("Arrays must be of the same length")
@@ -76,8 +90,6 @@ def euclidean(a, b):
     Returns Euclidean distance between vectors a and b
     """
     return np.sqrt(np.sum((np.array(a, dtype=np.float64) - np.array(b, dtype=np.float64))**2))
-
-import numpy as np
 
 def cosim(a, b):
     """
@@ -109,7 +121,11 @@ def get_k_sorted_distances(test_row, train, metric='euclidean', k=3):
         elif metric == 'cosim':
             calc = cosim(test_row[1], train_row[1])
         elif metric == 'hamming':
-           calc = hamming_distance(test_row[1], train_row[1])
+           calc = hamming(test_row[1], train_row[1])
+        elif metric == 'pearson_correlation':
+           calc = pearson_correlation(test_row[1], train_row[1])
+        else:
+           raise ValueError(f'metric \'{metric}\' is not a valid option')
         distances.append([calc, train_row[0]])
     return heapq.nsmallest(k, distances)
 
@@ -164,7 +180,7 @@ def get_random_centroids_michael(data, k):
 
     return centroids
 
-def kmeans_michael(data, metric, k=10):
+def kmeans(data, metric, k=10):
     centroids = get_random_centroids_michael(data, k)
 
     clusters = None
@@ -191,31 +207,29 @@ def kmeans_michael(data, metric, k=10):
         converged = all([np.array_equal(centroid, new_centroid) for centroid, new_centroid in zip(centroids, new_centroids)])
         centroids = new_centroids
 
-    return clusters, cluster_memberships
-    
-        
+    return cluster_memberships
    
-def kmeans(train, query, metric):
-    num_clusters = 9
-    has_converged = False
-    last_iteration_centroids = None
-    next_iteration_centroids = None
+# def kmeans(train, query, metric):
+#     num_clusters = 9
+#     has_converged = False
+#     last_iteration_centroids = None
+#     next_iteration_centroids = None
     
-    while not has_converged:
-      nodes = initialize_nodes(train)  # Converts each row to a node representation
-      if not next_iteration_centroids:
-        centroids = select_random_centroids(nodes, num_clusters) # Gets the k random mean clusters from the training set
-        last_iteration_centroids = centroids
-      else:
-        centroids = next_iteration_centroids
-        last_iteration_centroids = centroids
-      assign_labels_to_nodes(nodes, centroids, metric) # Assigns a class name to the node of the closest mean cluster
-      updated_data = generate_dataset_from_labeled_nodes(nodes) # Creates a new dataset of label data and flattened representations    {class-8 ,   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ...}
-      next_iteration_centroids = get_means_from_labeled_data(updated_data)
+#     while not has_converged:
+#       nodes = initialize_nodes(train)  # Converts each row to a node representation
+#       if not next_iteration_centroids:
+#         centroids = select_random_centroids(nodes, num_clusters) # Gets the k random mean clusters from the training set
+#         last_iteration_centroids = centroids
+#       else:
+#         centroids = next_iteration_centroids
+#         last_iteration_centroids = centroids
+#       assign_labels_to_nodes(nodes, centroids, metric) # Assigns a class name to the node of the closest mean cluster
+#       updated_data = generate_dataset_from_labeled_nodes(nodes) # Creates a new dataset of label data and flattened representations    {class-8 ,   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ...}
+#       next_iteration_centroids = get_means_from_labeled_data(updated_data)
       
-      if last_iteration_centroids is not None and calculate_converge(last_iteration_centroids, next_iteration_centroids):
-        has_converged = True
-    return updated_data
+#       if last_iteration_centroids is not None and calculate_converge(last_iteration_centroids, next_iteration_centroids):
+#         has_converged = True
+#     return updated_data
 
 def calculate_converge(last_centroids, next_centroids):
   epsilon = 1e-4
@@ -357,6 +371,7 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
   valid_actual_cos, valid_pred_cos = knn(train, valid, 'cosim')
   valid_actual_euc, valid_pred_euc = knn(train, valid, 'euclidean')
   valid_actual_ham, valid_pred_ham = knn(train, valid, 'hamming')
+  valid_actual_pc, valid_pred_pc = knn(train, valid, 'pearson_correlation')
   print("     Accuracy of Cosine Similarity KNN -- ", accuracy(valid_actual_cos, valid_pred_cos))
   print("     Confusion Matrix of Cosine Similarity KNN")
   print_conf_matrix(conf_matrix(valid_actual_cos, valid_pred_cos))
@@ -368,6 +383,10 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
   print("     Accuracy of Hamming KNN -- ", accuracy(valid_actual_ham, valid_pred_ham))
   print("     Confusion Matrix of Hamming KNN")
   print_conf_matrix(conf_matrix(valid_actual_ham, valid_pred_ham))
+  print()
+  print("     Accuracy of Pearson Correlation KNN -- ", accuracy(valid_actual_pc, valid_pred_pc))
+  print("     Confusion Matrix of Pearson Correlation KNN")
+  print_conf_matrix(conf_matrix(valid_actual_pc, valid_pred_pc))
   print()
   print()
 
@@ -398,8 +417,8 @@ def run_kmeans(train, test):
   print('     ----------------------------------')
   print("     K-Means")
   print('     ----------------------------------')
-  kmeans_resulting_dataset_with_clusters = kmeans(train, test, 'euclidean') # result with labels
-  print("     ", kmeans_resulting_dataset_with_clusters) 
+  cluster_memberships = kmeans(train, test, 'euclidean') # result with labels
+  print("     ", cluster_memberships) 
   print('     ----------------------------------')
   print('\n\n\n')
 
@@ -489,4 +508,3 @@ if __name__ == "__main__":
     
     # train_data = read_data('mnist_train.csv')
     # show('mnist_train.csv', 'pixels')
-
