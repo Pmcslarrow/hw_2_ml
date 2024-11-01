@@ -108,6 +108,8 @@ def get_k_sorted_distances(test_row, train, metric='euclidean', k=3):
             calc = euclidean(test_row[1], train_row[1])
         elif metric == 'cosim':
             calc = cosim(test_row[1], train_row[1])
+        elif metric == 'hamming':
+           calc = hamming_distance(test_row[1], train_row[1])
         distances.append([calc, train_row[0]])
     return heapq.nsmallest(k, distances)
 
@@ -465,7 +467,6 @@ def main():
     print(f"Cosine Test Accuracy: {no_dim_cosine_test_accuracy}")
     print(f"Euclidean Test Accuracy: {no_dim_euclidean_test_accuracy}\n")
     print(f"Hamming Validation Accuracy: {hamming_validation_accuracy}\n")
-
 
     # KNN with PCA
     print("KNN with PCA Dimensionality Reduction:")
