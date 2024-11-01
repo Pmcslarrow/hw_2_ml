@@ -74,14 +74,20 @@ def compare_kmeans_implementations(data_list, metric, k=10, subdir=''):
     print('-'*5)
 
     # Custom KMeans clustering on original data
-    clusters = kmeans_michael(cluster_data, metric, k=k)
-    X = [point for cluster in clusters for point in cluster]
-    labels = []
-    for i, cluster in enumerate(clusters):
-        labels.extend([i] * len(cluster))
+    clusters, cluster_memberships = kmeans_michael(cluster_data, metric, k=k)
+    # X = [point for cluster in clusters for point in cluster]
+    labels = cluster_memberships
+    # for i, cluster in enumerate(clusters):
+    #     labels.extend([i] * len(cluster))
+
+    # for point in cluster_data:
+    #     for i in range(k):
+    #         if any(np.array_equal(point, cpoint) for cpoint in clusters):
+    #             labels.append(i)
+    #             break
 
     # Silhouette score for custom KMeans
-    custom_score = silhouette_score(X, labels)
+    custom_score = silhouette_score(data, labels)
     cami = adjusted_mutual_info_score(true_labels, labels)
     cari = adjusted_rand_score(true_labels, labels)
     print(f"Silhouette Score with k={k} (custom KMeans):", custom_score)
