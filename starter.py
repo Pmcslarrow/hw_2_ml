@@ -1,39 +1,39 @@
 import numpy as np 
 from collections import Counter
 import heapq
+from sklearn import metrics
 import pandas as pd
-import matplotlib.pyplot as plt
 
-class Node:
-    def __init__(self, data):
-        self.data = data
-        self.min_distance = float('inf')
-        self.class_label = None
+# class Node:
+#     def __init__(self, data):
+#         self.data = data
+#         self.min_distance = float('inf')
+#         self.class_label = None
 
-    def get_data(self):
-        return self.data
+#     def get_data(self):
+#         return self.data
     
-    def get_min_distance(self):
-        return self.min_distance
+#     def get_min_distance(self):
+#         return self.min_distance
     
-    def get_class(self):
-        return self.class_label
+#     def get_class(self):
+#         return self.class_label
 
-    def set_class(self, string):
-        """
-        Parameters
-        ----------
-        string: The string of the new class you want to assign
-        """
-        self.class_label = string
+#     def set_class(self, string):
+#         """
+#         Parameters
+#         ----------
+#         string: The string of the new class you want to assign
+#         """
+#         self.class_label = string
 
-    def set_min_distance(self, new_min):
-        """
-        Parameters
-        ----------
-        new_min: The new lowest distance to this point (float)
-        """
-        self.min_distance = new_min
+#     def set_min_distance(self, new_min):
+#         """
+#         Parameters
+#         ----------
+#         new_min: The new lowest distance to this point (float)
+#         """
+#         self.min_distance = new_min
 
 
 def accuracy(actuals, predicted):
@@ -142,7 +142,7 @@ def get_most_common_label(distances):
     label_counter = Counter(label for _, label in distances)
     return label_counter.most_common(1)[0][0]
 
-def knn(train, query, metric):
+def knn(train, query, metric, k=4):
     """
     Parameters
     ----------
@@ -155,7 +155,6 @@ def knn(train, query, metric):
     Returns one array of true labels and one array of the predicted labels 
     """
 
-    k = 4
     print(f"     Running KNN for k = {k} with {metric} metric")
     actuals = []
     predictions = []
@@ -174,7 +173,7 @@ def get_random_centroids_michael(data, k):
 
     centroids = [
         np.mean(data_copy[idx: idx + chunk_size], axis=0) if idx + chunk_size <= num_points 
-        else np.mean(data_copy[idx:]) 
+        else np.mean(data_copy[idx:], axis=0)
         for idx in range(0, num_points, chunk_size)
     ]
 
@@ -198,6 +197,14 @@ def kmeans(data, metric, k=10):
             elif metric == 'cosim':
                 point_to_centroid_dists = [cosim(point, centroid)
                                         for centroid in centroids]
+            elif metric == 'hamming':
+                point_to_centroid_dists = [hamming(point, centroid)
+                                        for centroid in centroids]
+            elif metric == 'pearson_correlation':
+                point_to_centroid_dists = [pearson_correlation(point, centroid)
+                                        for centroid in centroids]
+            else:
+                raise ValueError(f'metric \'{metric}\' is not a valid option')
             cluster_membership = np.argmin(point_to_centroid_dists)
             clusters[cluster_membership].append(point)
             cluster_memberships.append(cluster_membership)
@@ -240,11 +247,11 @@ def calculate_converge(last_centroids, next_centroids):
       return False
   return True
 
-def initialize_nodes(train):
-    new_dataset = []
-    for row in train:
-        new_dataset.append(Node(row))
-    return np.array(new_dataset)
+# def initialize_nodes(train):
+#     new_dataset = []
+#     for row in train:
+#         new_dataset.append(Node(row))
+#     return np.array(new_dataset)
 
 def select_random_centroids(train, k):
     k_random_examples = np.random.choice(train, size=k)
@@ -277,25 +284,18 @@ def generate_dataset_from_labeled_nodes(train):
     })
     return df  
     
-def get_means_from_labeled_data(data):
-    grouped = data.groupby('label')
-    next_centroids = []
-    for label, values in grouped:
-      new_mean_data = calculate_mean(values['data']) # Calculating the mean array for the grouped label (example: gets the new mean array for class-0, class-1...)
-      new_node = Node(new_mean_data)
-      new_node.set_class(label)
-      next_centroids.append(new_node)
-    return next_centroids
+# def get_means_from_labeled_data(data):
+#     grouped = data.groupby('label')
+#     next_centroids = []
+#     for label, values in grouped:
+#       new_mean_data = calculate_mean(values['data']) # Calculating the mean array for the grouped label (example: gets the new mean array for class-0, class-1...)
+#       new_node = Node(new_mean_data)
+#       new_node.set_class(label)
+#       next_centroids.append(new_node)
+#     return next_centroids
 
 def calculate_mean(arrays):
   return np.mean(arrays, axis=0)
-
-def calculate_pca(dataset):
-  labels = [item[0] for item in dataset]  
-  features = np.array([item[1] for item in dataset])  
-  pca = PCA(n_components=200)
-  features_pca = pca.fit_transform(features)
-  return [[str(label), np.array(features_pca[i], dtype=np.float64)] for i, label in enumerate(labels)]
 
 def calculate_downsample(dataset):
     for i, row in enumerate(dataset):
@@ -413,20 +413,29 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
 
   return cosine_validation_accuracy, euclidean_validation_accuracy, cosine_test_accuracy, euclidean_test_accuracy, hamming_validation_accuracy
 
-def run_kmeans(train, test):
-  print('     ----------------------------------')
-  print("     K-Means")
-  print('     ----------------------------------')
-  cluster_memberships = kmeans(train, test, 'euclidean') # result with labels
-  print("     ", cluster_memberships) 
-  print('     ----------------------------------')
-  print('\n\n\n')
+def run_kmeans(train, true_labels):
+    print('     ----------------------------------')
+    print("     K-Means")
+    print('     ----------------------------------')
+    cluster_memberships = kmeans(train, 'euclidean', k=10) # result with labels
+    custom_score = metrics.silhouette_score(train, cluster_memberships)
+    cami = metrics.adjusted_mutual_info_score(true_labels, cluster_memberships)
+    cari = metrics.adjusted_rand_score(true_labels, cluster_memberships)
+    print(f"Silhouette Score with k={10} (custom KMeans):", custom_score)
+    print("Adjusted Mutual Information (AMI):", cami)
+    print("Adjusted Rand Index (ARI):", cari)
+    print('     ----------------------------------')
+    print('\n\n\n')
 
 def main():
     # show(filename, 'pixels')
     train_data = read_data('mnist_train.csv')
     valid_data = read_data('mnist_valid.csv')
     test_data = read_data('mnist_test.csv')
+
+    inplace_min_max_scaling(train_data)
+    inplace_min_max_scaling(test_data)
+    inplace_min_max_scaling(valid_data)
 
     """
     ------------------------------------------------
@@ -441,32 +450,18 @@ def main():
     KMeans with no dimensionality reduction
     ------------------------------------------------
     """
-    means_train_data = [row[1] for row in train_data] # Passing in flattened matrix without labels
-    means_test_data = [row[1] for row in test_data]
-    run_kmeans(means_train_data, means_test_data)
-
-
-    """
-    ------------------------------------------------
-    PRINCIPAL COMPONENT ANALYSIS
-    ------------------------------------------------
-    """
-    train_copy = train_data.copy()
-    test_copy = test_data.copy()
-    valid_copy = valid_data.copy()
-
-    df_train_pca = calculate_pca(train_copy)
-    df_test_pca = calculate_pca(test_copy)
-    df_valid_pca = calculate_pca(valid_copy)
-
-    pca_cosine_validation_accuracy, pca_euclidean_validation_accuracy, pca_cosine_test_accuracy, pca_euclidean_test_accuracy, pca_hamming_validation_accuracy = run_knn(df_train_pca, df_test_pca, df_valid_pca, title="[ PCA - DIMENSIONALITY REDUCTION  ]")
-
+    kmeans_train_data = [row[1] for row in train_data] # Passing in flattened matrix without labels
+    kmeans_train_labels = [row[0] for row in train_data] # Passing in flattened matrix without labels
+    run_kmeans(kmeans_train_data, kmeans_train_labels)
 
     """
     ------------------------------------------------
     DOWNSAMPLING
     ------------------------------------------------
     """
+    train_copy = train_data.copy()
+    test_copy = test_data.copy()
+    valid_copy = valid_data.copy()
     calculate_downsample(train_copy) # inplace calculation of downsample -- reduces the dataset by half exactly
     calculate_downsample(test_copy)
     calculate_downsample(valid_copy)
@@ -486,14 +481,6 @@ def main():
     print(f"Cosine Test Accuracy: {no_dim_cosine_test_accuracy}")
     print(f"Euclidean Test Accuracy: {no_dim_euclidean_test_accuracy}\n")
     print(f"Hamming Validation Accuracy: {hamming_validation_accuracy}\n")
-
-    # KNN with PCA
-    print("KNN with PCA Dimensionality Reduction:")
-    print("-------------------------------------")
-    print(f"Cosine Validation Accuracy: {pca_cosine_validation_accuracy}")
-    print(f"Euclidean Validation Accuracy: {pca_euclidean_validation_accuracy}")
-    print(f"Cosine Test Accuracy: {pca_cosine_test_accuracy}")
-    print(f"Euclidean Test Accuracy: {pca_euclidean_test_accuracy}\n")
 
     # KNN with Downsampling
     print("KNN with Downsampling Dimensionality Reduction:")
