@@ -74,7 +74,6 @@ def cosim(a, b):
     return 0.0
 
   dot_product = np.dot(ratings_a, ratings_b)
-  print("DOT: ", dot_product)
   similarity = (dot_product / (norm_a * norm_b))
   return similarity
 
@@ -100,8 +99,6 @@ def calculate_similarities(data):
         distance = cosim(data.loc[user_1], data.loc[user_2])
         similarities[user_1][user_2] = distance
         similarities[user_2][user_1] = distance
-        # similarities[user_1].append((distance, user_2))
-        # similarities[user_2].append((distance, user_1))
   return similarities
 
 def impute_rating(pivot_table, similarity_dict):
@@ -139,13 +136,6 @@ def impute_rating(pivot_table, similarity_dict):
       if len(recommendations[user_id]) > 5:
         heapq.heappop(recommendations[user_id])
   return recommendations
-
-      
-    
-      
-      
-  
-
 
 
 def read_file(prefix="train"):
@@ -192,10 +182,13 @@ if __name__ == '__main__':
     training_user_similarities = calculate_similarities(train_pivot)
     
 
-    impute_rating(train_pivot, training_user_similarities)
+    recommendations = impute_rating(train_pivot, training_user_similarities)
 
-    # for user_id, distance_tuple in training_user_similarities.items():
-    #   print(f"User ID: {user_id}")
-    #   for distance, other_user, _, _ in distance_tuple:
-    #     print(f"- Distance to user ID {other_user} == {distance}")
-    #   print()
+    for user_id, recommendation_list in recommendations.items():
+      print(f"User ID {user_id} SHOULD WATCH:")
+      for recommendation in recommendation_list:
+        movie_id = recommendation[1]
+        movie_details = training_data[training_data['movie_id'] == movie_id].values[0]
+        movie_title = movie_details[3] 
+        print(f'--- {movie_title}')
+      print()
