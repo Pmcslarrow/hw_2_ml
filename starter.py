@@ -166,10 +166,12 @@ def kmeans_michael(data, metric, k=10):
     centroids = get_random_centroids_michael(data, k)
 
     clusters = None
+    cluster_memberships = None
 
     converged = False
     while not converged:
         clusters = [[] for _ in range(k)]
+        cluster_memberships = []
 
         for point in data:
             if metric == 'euclidean':
@@ -180,13 +182,14 @@ def kmeans_michael(data, metric, k=10):
                                         for centroid in centroids]
             cluster_membership = np.argmin(point_to_centroid_dists)
             clusters[cluster_membership].append(point)
+            cluster_memberships.append(cluster_membership)
         
         new_centroids = [np.mean(cluster, axis=0) for cluster in clusters]
 
         converged = all([np.array_equal(centroid, new_centroid) for centroid, new_centroid in zip(centroids, new_centroids)])
         centroids = new_centroids
 
-    return clusters
+    return clusters, cluster_memberships
     
         
    
