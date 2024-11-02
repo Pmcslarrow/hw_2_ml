@@ -101,7 +101,7 @@ def calculate_similarities(data):
         similarities[user_2][user_1] = distance
   return similarities
 
-def impute_rating(pivot_table, similarity_dict):
+def impute_rating(pivot_table, similarity_dict, similarity_dict_demo=None):
   rows, cols = pivot_table.shape
   recommendations = collections.defaultdict(list)
 
@@ -117,7 +117,7 @@ def impute_rating(pivot_table, similarity_dict):
       builder[user_id] = rating
     
     for user_id, rating in builder.items():
-      if np.isnan(rating):
+      if not np.isnan(rating):
         continue
 
       imputed_rating_num = 0
@@ -126,15 +126,19 @@ def impute_rating(pivot_table, similarity_dict):
       for other_user_id, other_rating in builder.items():
         if other_user_id == user_id or np.isnan(other_rating):
           continue
-        imputed_rating_num += (other_rating * similarity_dict[user_id][other_user_id])
-        imputed_rating_denom += similarity_dict[user_id][other_user_id]
+        if similarity_dict_demo is not None:
+          imputed_rating_num += (other_rating * (similarity_dict[user_id][other_user_id] + similarity_dict_demo[user_id][other_user_id]))
+          imputed_rating_denom += (similarity_dict[user_id][other_user_id] + similarity_dict_demo[user_id][other_user_id])
+        else:
+          imputed_rating_num += (other_rating * (similarity_dict[user_id][other_user_id]))
+          imputed_rating_denom += (similarity_dict[user_id][other_user_id])
 
       recommendation = imputed_rating_num / imputed_rating_denom
       recommendation = min(max(recommendation, 0), 5)
-      heapq.heappush(recommendations[user_id], (recommendation, movie_id))
+      heapq.heappush(recommendations[user_id], (-recommendation, movie_id))
       
-      if len(recommendations[user_id]) > 5:
-        heapq.heappop(recommendations[user_id])
+      # if len(recommendations[user_id]) > 5:
+      #   heapq.heappop(recommendations[user_id])
   return recommendations
 
 
@@ -177,12 +181,32 @@ if __name__ == '__main__':
     training_data['gender'] = gender_encoder.fit_transform(training_data['gender'])
     training_data['occupation'] = occupation_encoder.fit_transform(training_data['occupation'])
 
+    test_data['genre'] = genre_encoder.transform(test_data['genre'])
+    test_data['gender'] = gender_encoder.transform(test_data['gender'])
+    test_data['occupation'] = occupation_encoder.transform(test_data['occupation'])
+
+    valid_data['genre'] = genre_encoder.transform(valid_data['genre'])
+    valid_data['gender'] = gender_encoder.transform(valid_data['gender'])
+    valid_data['occupation'] = occupation_encoder.transform(valid_data['occupation'])
+
     # Creating User-based collaborative filtering
     train_pivot = training_data.pivot(index='user_id', columns='movie_id', values='rating')
     training_user_similarities = calculate_similarities(train_pivot)
     
+    train_demo_df = training_data.loc[:, ['user_id', 'age', 'gender', 'occupation']].drop_duplicates().set_index('user_id')
+    training_user_demo_similarities = calculate_similarities(train_demo_df)
 
-    recommendations = impute_rating(train_pivot, training_user_similarities)
+    recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=training_user_demo_similarities)
+    # recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=None)
+
+    import pickle
+
+    with open('./recommendations.pkl', 'wb') as f:
+      pickle.dump(recommendations, f)
+
+    training_data.to_csv('./training_data.csv', index=False)
+    test_data.to_csv('./test_data.csv', index=False)
+    valid_data.to_csv('./valid_data.csv', index=False)
 
     for user_id, recommendation_list in recommendations.items():
       print(f"User ID {user_id} SHOULD WATCH:")
