@@ -54,6 +54,7 @@ from sklearn.preprocessing import LabelEncoder
 import collections
 import heapq
 
+
 def cosim(a, b):
   # Drop the NA values from a and b and find where both users have rated the SAME movie
   movie_ids_no_nan_a = a.dropna().index
@@ -77,6 +78,7 @@ def cosim(a, b):
   similarity = (dot_product / (norm_a * norm_b))
   return similarity
 
+
 def calculate_similarities(data):
   """
   Parameters
@@ -85,7 +87,10 @@ def calculate_similarities(data):
 
   Returns
   -------
-  NOTE COME BACK
+  A dictionary inside a dictionary that represents the similarity for 
+  one user to another user, and the similarity (distance) between them
+
+  { user1: {user2: distance}, user2: {user1: distance}, ......... }
   """
   similarities = collections.defaultdict(lambda: collections.defaultdict(float))
   visited = set()
@@ -101,8 +106,21 @@ def calculate_similarities(data):
         similarities[user_2][user_1] = distance
   return similarities
 
+
 def impute_rating(pivot_table, similarity_dict, similarity_dict_demo=None):
-  rows, cols = pivot_table.shape
+  """
+  Parameters
+  ----------
+  pivot_table: The pivot table representation of the data with values as ratings
+  similarity_dict: The dictionary representation of distance between two users (how similar they are)
+
+  Returns
+  -------
+  A dictionary of lists where each key is 
+  the user we are recommending to, and each list
+  contains the recommendations in tuple format.
+  """
+  rows, _ = pivot_table.shape
   recommendations = collections.defaultdict(list)
 
   for movie_id in pivot_table.columns:
@@ -163,6 +181,7 @@ def read_file(prefix="train"):
   return training_datasets
 
 
+
 if __name__ == '__main__':
     training_datasets = read_file(prefix="train")
     test_datasets = read_file(prefix='test')
@@ -173,6 +192,7 @@ if __name__ == '__main__':
     test_data = pd.concat(test_datasets, ignore_index=True)
     valid_data = pd.concat(validation_datasets, ignore_index=True)
 
+    # Encoding the genre, gender, and occupation for each dataset
     genre_encoder = LabelEncoder()
     gender_encoder = LabelEncoder()
     occupation_encoder = LabelEncoder()
@@ -189,7 +209,7 @@ if __name__ == '__main__':
     valid_data['gender'] = gender_encoder.transform(valid_data['gender'])
     valid_data['occupation'] = occupation_encoder.transform(valid_data['occupation'])
 
-    # Creating User-based collaborative filtering
+    # Creating User-based collaborative filtering with a pivot table
     train_pivot = training_data.pivot(index='user_id', columns='movie_id', values='rating')
     training_user_similarities = calculate_similarities(train_pivot)
     
