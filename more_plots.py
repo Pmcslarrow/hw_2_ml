@@ -1,8 +1,24 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from starter import read_data, inplace_min_max_scaling, accuracy, kmeans
+from starter import read_data, inplace_min_max_scaling, accuracy, kmeans, conf_matrix
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def conf_matrix_plot(actuals, predicted):
+  """
+  Plots a confusion matrix
+  """
+  confusion = conf_matrix(actuals, predicted)
+  
+  plt.figure(figsize=(10, 8))
+  sns.heatmap(confusion, annot=True, fmt="d", cmap="Blues", cbar=False, xticklabels=range(10), yticklabels=range(10))
+  plt.xlabel("Predicted")
+  plt.ylabel("Actual")
+  plt.title("Plot for Confusion Matrix")
+  plt.show()
+  
 train_data = read_data('mnist_train.csv')
 valid_data = read_data('mnist_valid.csv')
 test_data = read_data('mnist_test.csv')
