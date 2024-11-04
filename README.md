@@ -1,3 +1,7 @@
+# Trying to run the code?
+- Please see starter.py for our final implementations all in a single file (per request)
+
+# Write-up
 2024FA_COMP_SCI_349-0_SEC1
 Prof. David Demeter
 
