@@ -602,17 +602,18 @@ def main():
   print(f"Euclidean Test Accuracy: {downsampling_euclidean_test_accuracy}")
 
 if __name__ == "__main__":
-  # main()
-  train_data = read_data('mnist_train.csv')
-  valid_data = read_data('mnist_valid.csv')
-  test_data = read_data('mnist_test.csv')
+  main()
+  # train_data = read_data('mnist_train.csv')
+  # valid_data = read_data('mnist_valid.csv')
+  # test_data = read_data('mnist_test.csv')
 
-  inplace_min_max_scaling(train_data)
-  inplace_min_max_scaling(test_data)
-  inplace_min_max_scaling(valid_data)
+  # inplace_min_max_scaling(train_data)
+  # inplace_min_max_scaling(test_data)
+  # inplace_min_max_scaling(valid_data)
 
-  knn(train_data, test_data, 'cosim')
-  kmeans(train_data, test_data, 'cosim')
+  # for k in range(2, 10):
+  #   print(k, accuracy(*knn_helper(train_data, test_data, 'euclidean', k=k)))
+  # kmeans(train_data, test_data, 'cosim')
 
 
 # """
