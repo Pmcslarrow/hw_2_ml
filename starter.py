@@ -421,9 +421,10 @@ def collaborative(data,query,M):
 
     Returns
     -------
-    A list of M movie recommendation for the query user based upon observations in the dataset
+    A list of M movie recommendations for the query user based upon observations in the dataset
     
     """   
+    query = int(query)
 
     # Encoding the genre, gender, and occupation for each dataset
     genre_encoder = LabelEncoder()
@@ -438,11 +439,12 @@ def collaborative(data,query,M):
     training_user_similarities = calculate_similarities(train_pivot)
     
     train_demo_df = data.loc[:, ['user_id', 'age', 'gender', 'occupation']].drop_duplicates().set_index('user_id')
+    train_demo_df['age'] = (train_demo_df['age'] - train_demo_df['age'].min()) / (train_demo_df['age'].max() - train_demo_df['age'].min())
     training_user_demo_similarities = calculate_similarities(train_demo_df)
 
     recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=training_user_demo_similarities)
 
-    M_query_recommendations = recommendations[query][: M]
+    M_query_recommendations = [data[data['movie_id'] == movie_obj[1]]['title'].values[0] for movie_obj in recommendations[query][: M]]
 
     return M_query_recommendations
 

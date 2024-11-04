@@ -52,7 +52,7 @@ user_id
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
-from starter import read_file, calculate_similarities, impute_rating
+from starter import read_file, calculate_similarities, impute_rating, collaborative
 
 if __name__ == '__main__':
     training_datasets = read_file(prefix="train")
@@ -84,12 +84,15 @@ if __name__ == '__main__':
     # Creating User-based collaborative filtering with a pivot table
     train_pivot = training_data.pivot(index='user_id', columns='movie_id', values='rating')
     training_user_similarities = calculate_similarities(train_pivot)
+    print(training_user_similarities)
     
     train_demo_df = training_data.loc[:, ['user_id', 'age', 'gender', 'occupation']].drop_duplicates().set_index('user_id')
+    train_demo_df['age'] = (train_demo_df['age'] - train_demo_df['age'].min()) / (train_demo_df['age'].max() - train_demo_df['age'].min())
     training_user_demo_similarities = calculate_similarities(train_demo_df)
+    print(training_user_demo_similarities)
 
-    recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=training_user_demo_similarities)
-    # recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=None)
+    # recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=training_user_demo_similarities)
+    recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=None)
 
     import pickle
 
