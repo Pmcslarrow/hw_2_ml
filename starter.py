@@ -228,7 +228,7 @@ def kmeans(data,query,metric):
     """
     if metric not in ['euclidean', 'cosim']:
       raise ValueError(f'metric \'{metric}\' is not a valid option')
-    return kmeans_helper(kmeans_train_data = [row[1] for row in data], metric=metric, k=10)
+    return kmeans_helper([row[1] for row in data], metric=metric, k=10)
 
 def calculate_downsample(dataset):
   """
@@ -602,18 +602,24 @@ def main():
   print(f"Euclidean Test Accuracy: {downsampling_euclidean_test_accuracy}")
 
 if __name__ == "__main__":
-  main()
-    
+  # main()
+  train_data = read_data('mnist_train.csv')
+  valid_data = read_data('mnist_valid.csv')
+  test_data = read_data('mnist_test.csv')
+
+  inplace_min_max_scaling(train_data)
+  inplace_min_max_scaling(test_data)
+  inplace_min_max_scaling(valid_data)
+
+  knn(train_data, test_data, 'cosim')
+  kmeans(train_data, test_data, 'cosim')
 
 
-
-
-
-"""
-------------------------------------------------
-OLD NODE CODE
-------------------------------------------------
-"""
+# """
+# ------------------------------------------------
+# OLD NODE CODE
+# ------------------------------------------------
+# """
 
 # class Node:
 #     def __init__(self, data):
