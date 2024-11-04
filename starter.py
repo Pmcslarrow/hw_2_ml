@@ -174,6 +174,12 @@ def knn(data,query,metric):
     """
     predictions = []
 
+    data = data.copy()
+    query = query.copy()
+
+    inplace_min_max_scaling(data)
+    inplace_min_max_scaling(query)
+
     if metric == 'euclidean':
       actuals, predictions = knn_helper(data, query, metric=metric, k=6)
     elif metric == 'cosim':
@@ -228,7 +234,13 @@ def kmeans(data,query,metric):
     """
     if metric not in ['euclidean', 'cosim']:
       raise ValueError(f'metric \'{metric}\' is not a valid option')
-    return kmeans_helper([row[1] for row in data], metric=metric, k=10)
+    
+    data = data.copy()
+    inplace_min_max_scaling(data)
+    
+    data = [row[1] for row in data]
+
+    return kmeans_helper(data, metric=metric, k=10)
 
 def calculate_downsample(dataset):
   """
@@ -602,18 +614,27 @@ def main():
   print(f"Euclidean Test Accuracy: {downsampling_euclidean_test_accuracy}")
 
 if __name__ == "__main__":
-  main()
-  # train_data = read_data('mnist_train.csv')
-  # valid_data = read_data('mnist_valid.csv')
-  # test_data = read_data('mnist_test.csv')
+  # main()
+  train_data = read_data('mnist_train.csv')
+  valid_data = read_data('mnist_valid.csv')
+  test_data = read_data('mnist_test.csv')
 
   # inplace_min_max_scaling(train_data)
   # inplace_min_max_scaling(test_data)
   # inplace_min_max_scaling(valid_data)
 
-  # for k in range(2, 10):
-  #   print(k, accuracy(*knn_helper(train_data, test_data, 'euclidean', k=k)))
-  # kmeans(train_data, test_data, 'cosim')
+  # calculate_downsample(train_data)
+  # calculate_downsample(test_data)
+  # calculate_downsample(valid_data)
+
+  # metric = 'euclidean'
+  # metric = 'cosim'
+
+  # for k in range(4, 8):
+  #   print(k, accuracy(*knn_helper(train_data, test_data, metric, k=k)))
+
+  # print(kmeans(train_data, None, 'cosim'))
+  # print(knn(train_data, test_data, 'cosim'))
 
 
 # """
