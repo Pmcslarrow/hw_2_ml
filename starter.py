@@ -614,10 +614,11 @@ def main():
   print(f"Euclidean Test Accuracy: {downsampling_euclidean_test_accuracy}")
 
 if __name__ == "__main__":
-  # main()
-  train_data = read_data('mnist_train.csv')
-  valid_data = read_data('mnist_valid.csv')
-  test_data = read_data('mnist_test.csv')
+  main()
+  
+  # train_data = read_data('mnist_train.csv')
+  # valid_data = read_data('mnist_valid.csv')
+  # test_data = read_data('mnist_test.csv')
 
   # inplace_min_max_scaling(train_data)
   # inplace_min_max_scaling(test_data)
