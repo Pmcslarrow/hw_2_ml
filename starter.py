@@ -440,6 +440,7 @@ def collaborative(data,query,M):
     
     train_demo_df = data.loc[:, ['user_id', 'age', 'gender', 'occupation']].drop_duplicates().set_index('user_id')
     train_demo_df['age'] = (train_demo_df['age'] - train_demo_df['age'].min()) / (train_demo_df['age'].max() - train_demo_df['age'].min())
+    train_demo_df['occupation'] = (train_demo_df['occupation'] - train_demo_df['occupation'].min()) / (train_demo_df['occupation'].max() - train_demo_df['occupation'].min())
     training_user_demo_similarities = calculate_similarities(train_demo_df)
 
     recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=training_user_demo_similarities)
