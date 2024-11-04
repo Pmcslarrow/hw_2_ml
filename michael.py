@@ -12,7 +12,7 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import Subset
 
-from starter import read_data, inplace_min_max_scaling, kmeans_michael
+from starter import read_data, inplace_min_max_scaling, kmeans_helper
 
 def format_data_for_clustering(data_list):
     cluster_data = [row[1].tolist() for row in data_list]
@@ -74,7 +74,7 @@ def compare_kmeans_implementations(data_list, metric, k=10, subdir=''):
     print('-'*5)
 
     # Custom KMeans clustering on original data
-    clusters, cluster_memberships = kmeans_michael(cluster_data, metric, k=k)
+    cluster_memberships = kmeans_helper(cluster_data, metric, k=k)
     # X = [point for cluster in clusters for point in cluster]
     labels = cluster_memberships
     # for i, cluster in enumerate(clusters):
@@ -85,6 +85,11 @@ def compare_kmeans_implementations(data_list, metric, k=10, subdir=''):
     #         if any(np.array_equal(point, cpoint) for cpoint in clusters):
     #             labels.append(i)
     #             break
+
+    clusters = [[] for _ in range(k)]
+
+    for data_point_idx, cluster in enumerate(cluster_memberships):
+        clusters[cluster].append(cluster_data[data_point_idx])
 
     # Silhouette score for custom KMeans
     custom_score = silhouette_score(data, labels)
@@ -194,6 +199,3 @@ if __name__ == '__main__':
 
     compare_kmeans_implementations(mnist_list, metric, subdir=f'mnist_{str(subset)}')
     save_2d_embeddings(*format_data_for_clustering(mnist_list), f'mnist_{str(subset)}')
-
-
-

@@ -1,7 +1,9 @@
 import numpy as np 
 from collections import Counter
+import collections
 import heapq
 from sklearn import metrics
+from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 
 def accuracy(actuals, predicted):
@@ -33,9 +35,9 @@ def inplace_min_max_scaling(data):
       scaled = row / maximum
       data[i][1] = scaled
 
-def pearson_correlation(a, b):
+def pearson(a, b):
   """
-  Returns Pearson correlation distance between vectors a and b
+  Returns Pearson correlation between vectors a and b
   """
   if len(a) != len(b):
       raise ValueError("Arrays must be of the same length")
@@ -52,7 +54,13 @@ def pearson_correlation(a, b):
   if denominator == 0.0:
       return 0.0
       
-  return 1 - (numerator / denominator)
+  return (numerator / denominator)
+
+def pearson_dist(a, b):
+  """
+  Returns Pearson correlation distance between vectors a and b
+  """
+  return 1 - pearson(a, b)
 
 def hamming(a, b):
   """
@@ -83,7 +91,13 @@ def cosim(a, b):
       return 0.0
   
   dot_product = np.dot(a, b)
-  return 1.0 - (dot_product / (norm_a * norm_b))
+  return (dot_product / (norm_a * norm_b))
+
+def cos_dist(a, b):
+  """
+  Returns Cosine Distance between vectors a and b.
+  """
+  return 1 - cosim(a, b)
 
 def get_k_sorted_distances(test_row, train, metric='euclidean', k=3):
   """
@@ -103,11 +117,7 @@ def get_k_sorted_distances(test_row, train, metric='euclidean', k=3):
       if metric == 'euclidean':
           calc = euclidean(test_row[1], train_row[1])
       elif metric == 'cosim':
-          calc = cosim(test_row[1], train_row[1])
-      elif metric == 'hamming':
-          calc = hamming(test_row[1], train_row[1])
-      elif metric == 'pearson_correlation':
-          calc = pearson_correlation(test_row[1], train_row[1])
+          calc = cos_dist(test_row[1], train_row[1])
       else:
           raise ValueError(f'metric \'{metric}\' is not a valid option')
       distances.append([calc, train_row[0]])
@@ -140,20 +150,7 @@ def get_random_centroids(data, k):
 
   return centroids
 
-def knn(train, query, metric, k=4):
-  """
-  Parameters
-  ----------
-  train: The training dataset
-  query: The test data you want to predict
-  metric: String of which distance measurement you want to use i.e. 'euclidean'
-
-  Returns
-  -------
-  Returns one array of true labels and one array of the predicted labels 
-  """
-
-  print(f"     Running KNN for k = {k} with {metric} metric")
+def knn_helper(train, query, metric, k=4):
   actuals = []
   predictions = []
   for test_example in query:
@@ -163,18 +160,30 @@ def knn(train, query, metric, k=4):
       predictions.append(most_common_label)
   return actuals, predictions
 
-def kmeans(data, metric, k=10):
-  """
-  Parameters
-  ----------
-  dataset: Dataset you want to learn about
-  metric: string representing what metric you want to measure distance with
-  k: number of clusters
+def knn(data,query,metric):
+    """
+    Parameters
+    ----------
+    data: The training dataset
+    query: The test data you want to predict
+    metric: String of which distance measurement you want to use i.e. 'euclidean'
 
-  Returns
-  -------
-  The predicted cluster assignments for every row in data 
-  """
+    Returns
+    -------
+    A list of predicted labels 
+    """
+    predictions = []
+
+    if metric == 'euclidean':
+      actuals, predictions = knn_helper(data, query, metric=metric, k=6)
+    elif metric == 'cosim':
+      actuals, predictions = knn_helper(data, query, metric=metric, k=7)
+    else:
+      raise ValueError(f'metric \'{metric}\' is not a valid option')
+
+    return predictions
+
+def kmeans_helper(data, metric, k=10):
   centroids = get_random_centroids(data, k)
 
   clusters = None
@@ -190,13 +199,7 @@ def kmeans(data, metric, k=10):
               point_to_centroid_dists = [euclidean(point, centroid)
                                       for centroid in centroids]
           elif metric == 'cosim':
-              point_to_centroid_dists = [cosim(point, centroid)
-                                      for centroid in centroids]
-          elif metric == 'hamming':
-              point_to_centroid_dists = [hamming(point, centroid)
-                                      for centroid in centroids]
-          elif metric == 'pearson_correlation':
-              point_to_centroid_dists = [pearson_correlation(point, centroid)
+              point_to_centroid_dists = [cos_dist(point, centroid)
                                       for centroid in centroids]
           else:
               raise ValueError(f'metric \'{metric}\' is not a valid option')
@@ -210,6 +213,22 @@ def kmeans(data, metric, k=10):
       centroids = new_centroids
 
   return cluster_memberships
+
+def kmeans(data,query,metric):
+    """
+    Parameters
+    ----------
+    dataset: The dataset to cluster
+    query: unused (no query for clustering)
+    metric: string representing what metric you want to measure distance with
+
+    Returns
+    -------
+    The predicted cluster assignments for every row in data 
+    """
+    if metric not in ['euclidean', 'cosim']:
+      raise ValueError(f'metric \'{metric}\' is not a valid option')
+    return kmeans_helper(kmeans_train_data = [row[1] for row in data], metric=metric, k=10)
 
 def calculate_downsample(dataset):
   """
@@ -268,6 +287,165 @@ def print_conf_matrix(matrix):
   for row in matrix:
     print("     ", row)
 
+def cosim_rec(a, b):
+  # Drop the NA values from a and b and find where both users have rated the SAME movie
+  movie_ids_no_nan_a = a.dropna().index
+  movie_ids_no_nan_b = b.dropna().index
+  movie_ids_both_rated = (movie_ids_no_nan_a.intersection(movie_ids_no_nan_b)).tolist()
+
+  # Movies that each has ranked that the other has not ranked (these can be used as our recommendations)
+  # movie_ids_a_ranked_not_b = (movie_ids_no_nan_a.difference(movie_ids_no_nan_b)).tolist()
+  # movie_ids_b_ranked_not_a = (movie_ids_no_nan_b.difference(movie_ids_no_nan_a)).tolist()
+
+  ratings_a = a[movie_ids_both_rated].to_numpy()
+  ratings_b = b[movie_ids_both_rated].to_numpy()
+
+  norm_a = np.linalg.norm(ratings_a)
+  norm_b = np.linalg.norm(ratings_b)
+  
+  if norm_a == 0 or norm_b == 0:
+    return 0.0
+
+  dot_product = np.dot(ratings_a, ratings_b)
+  similarity = (dot_product / (norm_a * norm_b))
+  return similarity
+
+
+def calculate_similarities(data):
+  """
+  Parameters
+  ----------
+  data: Pivoted dataframe where movie_ids are the columns and the rows are each user and the values are the ratings per movie
+
+  Returns
+  -------
+  A dictionary inside a dictionary that represents the similarity for 
+  one user to another user, and the similarity (distance) between them
+
+  { user1: {user2: distance}, user2: {user1: distance}, ......... }
+  """
+  similarities = collections.defaultdict(lambda: collections.defaultdict(float))
+  visited = set()
+  users = data.index.tolist() 
+  for i in range(len(users)):
+    for j in range(len(users)):
+      user_1 = users[i]
+      user_2 = users[j]
+      if user_1 != user_2 and tuple(sorted((user_1, user_2))) not in visited:
+        visited.add(tuple(sorted((user_1, user_2))))
+        distance = cosim_rec(data.loc[user_1], data.loc[user_2])
+        similarities[user_1][user_2] = distance
+        similarities[user_2][user_1] = distance
+  return similarities
+
+
+def impute_rating(pivot_table, similarity_dict, similarity_dict_demo=None):
+  """
+  Parameters
+  ----------
+  pivot_table: The pivot table representation of the data with values as ratings
+  similarity_dict: The dictionary representation of distance between two users (how similar they are)
+
+  Returns
+  -------
+  A dictionary of lists where each key is 
+  the user we are recommending to, and each list
+  contains the recommendations in tuple format.
+  """
+  rows, _ = pivot_table.shape
+  recommendations = collections.defaultdict(list)
+
+  for movie_id in pivot_table.columns:
+    ratings_per_movie_id = pivot_table[movie_id]
+    nan_count = ratings_per_movie_id.isna().sum()
+    difference = rows - nan_count
+    if difference < 2:
+      continue
+
+    builder = {}
+    for user_id, rating in ratings_per_movie_id.items():
+      builder[user_id] = rating
+    
+    for user_id, rating in builder.items():
+      if not np.isnan(rating):
+        continue
+
+      imputed_rating_num = 0
+      imputed_rating_denom = 0
+      
+      for other_user_id, other_rating in builder.items():
+        if other_user_id == user_id or np.isnan(other_rating):
+          continue
+        if similarity_dict_demo is not None:
+          imputed_rating_num += (other_rating * (similarity_dict[user_id][other_user_id] + similarity_dict_demo[user_id][other_user_id]))
+          imputed_rating_denom += (similarity_dict[user_id][other_user_id] + similarity_dict_demo[user_id][other_user_id])
+        else:
+          imputed_rating_num += (other_rating * (similarity_dict[user_id][other_user_id]))
+          imputed_rating_denom += (similarity_dict[user_id][other_user_id])
+
+      recommendation = imputed_rating_num / imputed_rating_denom
+      recommendation = min(max(recommendation, 0), 5)
+      heapq.heappush(recommendations[user_id], (-recommendation, movie_id))
+      
+      # if len(recommendations[user_id]) > 5:
+      #   heapq.heappop(recommendations[user_id])
+  return recommendations
+
+def read_file(prefix="train"):
+  """
+  Parameters
+  ----------
+  prefix: The prefix of the filename you want --> train_a.txt  train is the prefix here and we assume a, b, and c are the only postfix
+
+  Returns
+  -------
+  An array containing encoded pandas DataFrames for a, b, and c of your respective prefix filename
+  For example, training_data[0] contains train_a.txt as a pandas DataFrame
+  
+  """
+  training_datasets = [] # train_a.txt, train_b.txt, train_c.txt in pandas DataFrame format (encoded)
+  postfix=['a', 'b', 'c']
+  for letter in postfix:
+    filename = f"{prefix}_{letter}.txt"
+    data = pd.read_csv(filename, sep='\t')
+    training_datasets.append(data)
+  return training_datasets
+
+def collaborative(data,query,M):
+    """
+    Parameters
+    ----------
+    data: pd.DataFrame of the user data
+    query: user_id to get movie recommendations for
+    M: number of reccomendations to get
+
+    Returns
+    -------
+    A list of M movie recommendation for the query user based upon observations in the dataset
+    
+    """   
+
+    # Encoding the genre, gender, and occupation for each dataset
+    genre_encoder = LabelEncoder()
+    gender_encoder = LabelEncoder()
+    occupation_encoder = LabelEncoder()
+
+    data['genre'] = genre_encoder.fit_transform(data['genre'])
+    data['gender'] = gender_encoder.fit_transform(data['gender'])
+    data['occupation'] = occupation_encoder.fit_transform(data['occupation'])
+
+    train_pivot = data.pivot(index='user_id', columns='movie_id', values='rating')
+    training_user_similarities = calculate_similarities(train_pivot)
+    
+    train_demo_df = data.loc[:, ['user_id', 'age', 'gender', 'occupation']].drop_duplicates().set_index('user_id')
+    training_user_demo_similarities = calculate_similarities(train_demo_df)
+
+    recommendations = impute_rating(train_pivot, training_user_similarities, similarity_dict_demo=training_user_demo_similarities)
+
+    M_query_recommendations = recommendations[query][: M]
+
+    return M_query_recommendations
+
 def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIONALITY REDUCTION ]"):
   """
   Parameters
@@ -292,10 +470,8 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
 
   # VALIDATION SET
   print("     [  VALIDATION SET ]")
-  valid_actual_cos, valid_pred_cos = knn(train, valid, 'cosim')
-  valid_actual_euc, valid_pred_euc = knn(train, valid, 'euclidean')
-  valid_actual_ham, valid_pred_ham = knn(train, valid, 'hamming')
-  valid_actual_pc, valid_pred_pc = knn(train, valid, 'pearson_correlation')
+  valid_actual_cos, valid_pred_cos = knn_helper(train, valid, 'cosim')
+  valid_actual_euc, valid_pred_euc = knn_helper(train, valid, 'euclidean')
   print("     Accuracy of Cosine Similarity KNN -- ", accuracy(valid_actual_cos, valid_pred_cos))
   print("     Confusion Matrix of Cosine Similarity KNN")
   print_conf_matrix(conf_matrix(valid_actual_cos, valid_pred_cos))
@@ -304,21 +480,13 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
   print("     Confusion Matrix of Euclidean KNN")
   print_conf_matrix(conf_matrix(valid_actual_euc, valid_pred_euc))
   print()
-  print("     Accuracy of Hamming KNN -- ", accuracy(valid_actual_ham, valid_pred_ham))
-  print("     Confusion Matrix of Hamming KNN")
-  print_conf_matrix(conf_matrix(valid_actual_ham, valid_pred_ham))
-  print()
-  print("     Accuracy of Pearson Correlation KNN -- ", accuracy(valid_actual_pc, valid_pred_pc))
-  print("     Confusion Matrix of Pearson Correlation KNN")
-  print_conf_matrix(conf_matrix(valid_actual_pc, valid_pred_pc))
-  print()
   print()
 
   # TEST SET
   print("     [  TEST SET  ]")
 
-  test_actual_cos, test_pred_cos = knn(train, test, 'cosim')
-  test_actual_euc, test_pred_euc = knn(train, test, 'euclidean')
+  test_actual_cos, test_pred_cos = knn_helper(train, test, 'cosim')
+  test_actual_euc, test_pred_euc = knn_helper(train, test, 'euclidean')
   print("     Accuracy of Cosine Similarity KNN -- ", accuracy(test_actual_cos, test_pred_cos))
   print("     Confusion Matrix of Cosine Similarity KNN")
   print_conf_matrix(conf_matrix(test_actual_cos, test_pred_cos))
@@ -330,12 +498,11 @@ def run_knn(train, test, valid, title="[ USING ORIGINAL DATASET WITHOUT DIMENSIO
   print('\n\n\n')
   cosine_validation_accuracy = accuracy(valid_actual_cos, valid_pred_cos)
   euclidean_validation_accuracy = accuracy(valid_actual_euc, valid_pred_euc)
-  hamming_validation_accuracy = accuracy(valid_pred_ham, valid_pred_ham)
 
   cosine_test_accuracy = accuracy(test_actual_cos, test_pred_cos)
   euclidean_test_accuracy = accuracy(test_actual_euc, test_pred_euc)
 
-  return cosine_validation_accuracy, euclidean_validation_accuracy, cosine_test_accuracy, euclidean_test_accuracy, hamming_validation_accuracy
+  return cosine_validation_accuracy, euclidean_validation_accuracy, cosine_test_accuracy, euclidean_test_accuracy
 
 def run_kmeans(train, true_labels):
   """
@@ -352,7 +519,7 @@ def run_kmeans(train, true_labels):
   print('     ----------------------------------')
   print("     K-Means")
   print('     ----------------------------------')
-  cluster_memberships = kmeans(train, 'euclidean', k=10) # result with labels
+  cluster_memberships = kmeans_helper(train, 'euclidean', k=10) # result with labels
   custom_score = metrics.silhouette_score(train, cluster_memberships)
   cami = metrics.adjusted_mutual_info_score(true_labels, cluster_memberships)
   cari = metrics.adjusted_rand_score(true_labels, cluster_memberships)
@@ -380,8 +547,7 @@ def main():
   no_dim_cosine_validation_accuracy, \
   no_dim_euclidean_validation_accuracy, \
   no_dim_cosine_test_accuracy, \
-  no_dim_euclidean_test_accuracy, \
-  hamming_validation_accuracy = run_knn(train_data, test_data, valid_data)
+  no_dim_euclidean_test_accuracy = run_knn(train_data, test_data, valid_data)
   
 
   """
@@ -409,8 +575,7 @@ def main():
   downsampling_cosine_validation_accuracy, \
   downsampling_euclidean_validation_accuracy, \
   downsampling_cosine_test_accuracy, \
-  downsampling_euclidean_test_accuracy, \
-  downsampling_hamming_validation_accuracy = run_knn(train_copy, test_copy, valid_copy, title="[ DOWNSAMPLING - DIMENSIONALITY REDUCTION ]")
+  downsampling_euclidean_test_accuracy = run_knn(train_copy, test_copy, valid_copy, title="[ DOWNSAMPLING - DIMENSIONALITY REDUCTION ]")
 
 
   """
@@ -424,7 +589,6 @@ def main():
   print(f"Euclidean Validation Accuracy: {no_dim_euclidean_validation_accuracy}")
   print(f"Cosine Test Accuracy: {no_dim_cosine_test_accuracy}")
   print(f"Euclidean Test Accuracy: {no_dim_euclidean_test_accuracy}\n")
-  print(f"Hamming Validation Accuracy: {hamming_validation_accuracy}\n")
 
   # KNN with Downsampling
   print("KNN with Downsampling Dimensionality Reduction:")
